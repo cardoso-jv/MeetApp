@@ -22,7 +22,7 @@ class UserController {
     }
 
     const { id, email, name } = await User.create(req.body);
-    return res.json(user);
+    return res.json({ id, email, name });
   }
 
   async update(req, res) {
