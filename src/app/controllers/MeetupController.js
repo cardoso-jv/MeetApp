@@ -1,11 +1,32 @@
-import { isBefore, parseISO } from 'date-fns';
+import { isBefore, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { Op } from 'sequelize';
 import * as Yup from 'yup';
 import Meetup from '../models/Meetup';
+import User from '../models/User';
 
 
 class MeetupController {
   async index(req, res) {
-    const meetups = await Meetup.findAll({ where: { id_user: req.userId } });
+    const { page = 1, date } = req.query;
+    const where = { };
+    if (date) {
+      where.date = { [Op.between]: [startOfDay(parseISO(date)), endOfDay(parseISO(date))] };
+    }
+
+    const meetups = await Meetup.findAll({
+      where,
+      attributes: ['id', 'title', 'description', 'location', 'date', 'id_banner'],
+      order: ['date'],
+      limit: 10,
+      offset: (page - 1) * 10,
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'name', 'email'],
+        },
+      ],
+
+    });
     return res.json(meetups);
   }
 
@@ -53,7 +74,7 @@ class MeetupController {
       return res.status(400).json({ error: 'This meetup already past, you can not edit this.' });
     }
     if (meetup.id_user !== req.userId) {
-      return res.status(400).json({ error: 'You are not the meeting organizer' });
+      return res.status(400).json({ error: 'You are not the meeting organizer.' });
     }
     if (isBefore(parseISO(req.body.date), new Date())) {
       return res.status(400).json({ error: 'You cannot change the date to a past date.' });
@@ -71,14 +92,14 @@ class MeetupController {
       return res.status(400).json({ error: 'This meetup does not exists.' });
     }
     if (meetup.id_user !== req.userId) {
-      return res.status(400).json({ error: 'You are not the meeting organizer' });
+      return res.status(400).json({ error: 'You are not the meeting organizer.' });
     }
     if (isBefore(meetup.date, new Date())) {
       return res.status(400).json({ error: 'This meetup already past, you can not delete this.' });
     }
 
     meetup.destroy();
-    return res.json({ message: 'Meetup delete with sucess' });
+    return res.json({ message: 'Meetup successfully deleted.' });
   }
 }
 
